@@ -1,0 +1,73 @@
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { disableCloneOpacityFix, enableCloneOpacityFix } from './clone-opacity.js';
+import { KeybindingManager } from './keybindings.js';
+import { QuakeManager } from './quake-manager.js';
+import { ensureMigrated, formatMessage, parseEntries } from './types.js';
+export default class QuakeAnythingExtension extends Extension {
+    _settings = null;
+
+    _quake = null;
+
+    _keys = null;
+
+    _boundIds = new Set();
+
+    enable() {
+        this.initTranslations();
+        this._settings = this.getSettings();
+        ensureMigrated(this._settings);
+        this._quake = new QuakeManager();
+        this._keys = new KeybindingManager();
+        enableCloneOpacityFix();
+        this._quake.enable();
+        this._keys.enable();
+        this._reload();
+        this._settings.connectObject('changed::app-entries', () => this._reload(), this);
+    }
+
+    disable() {
+        this._settings?.disconnectObject(this);
+        this._keys?.disable();
+        this._keys = null;
+        disableCloneOpacityFix();
+        this._quake?.disable();
+        this._quake = null;
+        this._boundIds.clear();
+        this._settings = null;
+    }
+
+    _reload() {
+        if (!this._settings || !this._quake || !this._keys)
+            return;
+        const entries = parseEntries(this._settings.get_strv('app-entries'));
+        this._quake.setEntries(entries);
+        this._rebindKeys(entries);
+    }
+
+    _rebindKeys(entries) {
+        if (!this._keys || !this._quake)
+            return;
+        const nextIds = new Set(entries.map(e => e.id));
+        for (const id of this._boundIds) {
+            if (!nextIds.has(id))
+                this._keys.unbind(id);
+        }
+        this._boundIds.clear();
+        for (const entry of entries) {
+            if (!entry.shortcut) {
+                this._keys.unbind(entry.id);
+                continue;
+            }
+            const ok = this._keys.bind(entry.id, entry.shortcut, () => {
+                this._quake?.toggle(entry.id);
+            });
+            if (ok) {
+                this._boundIds.add(entry.id);
+            }
+            else {
+                Main.notify(_('Quake Anything Extended'), formatMessage(_('Shortcut "%s" is already in use and could not be bound.'), entry.shortcut));
+            }
+        }
+    }
+}

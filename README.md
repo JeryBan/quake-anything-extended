@@ -1,13 +1,20 @@
-# Quake Anything
+# Quake Anything Extended
 
-Drop down (or side-dock) **any** GUI app with a keyboard shortcut — Quake-style, not just a terminal.
+Drop down (or side-dock) **any** GUI app with a keyboard shortcut — Quake-style,
+not just a terminal.
 
-[![extensions.gnome.org](https://img.shields.io/badge/extensions.gnome.org-Quake%20Anything-4A86CF?logo=gnome&logoColor=white)](https://extensions.gnome.org/extension/10596/quake-anything/)
 [![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-46--50-4A86CF)](https://release.gnome.org/)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-blue.svg)](LICENSE)
 
+A personal fork of [yccoskun/quake-anything](https://github.com/yccoskun/quake-anything),
+extended into a proper *drawer*: centred at a configurable width, present on
+every workspace, translucent, and sliding through its own edge in both
+directions. See [CHANGELOG.md](CHANGELOG.md) for exactly what diverged.
+
+Not published on extensions.gnome.org. Install it from this repository.
+
 <p align="center">
-  <img src="docs/screenshot.png" alt="Alacritty docked to the top edge and Firefox docked to the bottom edge, with the Quake Anything settings window in front" width="820">
+  <img src="docs/screenshot.png" alt="Alacritty docked to the top edge and Firefox docked to the bottom edge, with the settings window in front" width="820">
 </p>
 
 Assign a shortcut to any installed application and it drops in from the edge you
@@ -16,104 +23,143 @@ extension's settings.
 
 ## Install
 
-### From extensions.gnome.org (recommended)
+### Prebuilt, no toolchain required
 
-Install directly from the [extension page](https://extensions.gnome.org/extension/10596/quake-anything/),
-or search for **Quake Anything** in **Extension Manager**.
-
-### From a release
-
-Download `quake-anything@yccoskun.github.io.shell-extension.zip` from the
-[latest release](https://github.com/yccoskun/quake-anything/releases/latest) and install it:
+`dist/` is committed, so a clone is already an installable extension. This is
+the path for a machine where you don't want Bun or TypeScript:
 
 ```bash
-gnome-extensions install --force quake-anything@yccoskun.github.io.shell-extension.zip
-gnome-extensions enable quake-anything@yccoskun.github.io
+git clone <this-repo> quake-anything-extended
+cd quake-anything-extended
+UUID=quake-anything@yccoskun.github.io
+mkdir -p ~/.local/share/gnome-shell/extensions/$UUID
+cp -r dist/. ~/.local/share/gnome-shell/extensions/$UUID/
+gnome-extensions enable $UUID
 ```
+
+Then **log out and back in** — GNOME Shell only scans the extensions directory
+at startup, so `gnome-extensions enable` will report that the extension does not
+exist until it has.
 
 ### From source
 
 ```bash
-git clone https://github.com/yccoskun/quake-anything.git
-cd quake-anything
 bun install
 bun run install-ext
 gnome-extensions enable quake-anything@yccoskun.github.io
 ```
 
-On Wayland, log out and back in after installing.
+Also needs a logout.
 
 ## Setup
 
-Open **Extension Manager** (or **Extensions**) → Quake Anything → **Settings**,
-add an entry, and set:
+Open **Extension Manager** (or **Extensions**) → Quake Anything Extended →
+**Settings**, add an entry, and set:
 
 | Setting | Meaning |
-|--------|---------|
+|---|---|
 | **Application** | Any installed GUI app |
 | **Side** | Top / bottom / left / right |
 | **Keyboard shortcut** | Toggle show/hide (Esc cancels, Backspace clears; conflicts are warned) |
-| **Default size** | Percentage of the monitor work area (10–90%) |
+| **Default size** | Share of the work area along the dock's axis (10–90%) |
+| **Width** | Share of the work area across it, centred (10–100%). Top/bottom only |
+| **Sticky** | Keep the drawer on every workspace |
+| **Opacity** | 10–100%; 100 is fully opaque |
 
 Press the shortcut to spawn. Press again to hide. Press again to show at the
-Quake edge and size.
+configured position and size.
+
+A bottom drawer at 45% size and 50% width is half the screen wide, centred, and
+flush with the bottom edge.
 
 ## Features
 
 - Dock any installed GUI app to **top**, **bottom**, **left**, or **right**
-- Multiple apps, each with its own shortcut and size
-- Default size as a **percentage** of the monitor work area, so cross-monitor
-  moves keep the ratio rather than a fixed pixel size
-- First spawn appears on the monitor under the mouse pointer; later toggles
-  restore the docked layout
-- While visible you can move, resize, minimize, or maximize freely — the next
-  shortcut press snaps back to the Quake position
+- Top/bottom docks take a **centred partial width**; left/right span the full
+  height as before
+- Sizes are **percentages of the work area**, so moving between monitors of
+  different resolutions keeps the proportions
+- **Sticky** drawers stay available on every workspace
+- **Per-entry opacity**, preserved across workspace switches and window effects
+- Show and hide both **slide through the dock's own edge**
+- **Every toggle resets the geometry.** Move, resize, maximise or fullscreen the
+  drawer freely — the next toggle puts it back exactly where settings say
 - Only windows **spawned by this extension** are controlled; other windows of
   the same app are left alone
 - Windows survive suspend and resume in place
 
 ## Notes
 
-- On Wayland, reloading GNOME Shell requires logging out and back in. You can
-  often reload just this extension with disable → enable.
-- Client-side window buttons (minimize/maximize) stay visible for many apps;
-  GNOME does not let extensions remove them reliably.
+- Settings live in `app-entries`, one JSON object per entry. A configuration
+  written by upstream (the `entries` tuple key) is migrated automatically the
+  first time this version runs, from either the shell or the preferences
+  window. Fields absent from an entry take defaults that reproduce upstream
+  behaviour, so nothing changes until you opt in.
+- The UUID is still `quake-anything@yccoskun.github.io`. It is the installed
+  directory name and the owner of the settings schema, so renaming it would
+  orphan your configuration.
+- `src/clone-opacity.ts` patches a GNOME Shell prototype
+  (`WorkspaceGroup._createClone`) so workspace-switch clones inherit window
+  opacity. It restores the original on disable, but it is the first thing to
+  check after a GNOME upgrade.
+- Client-side window buttons stay visible for many apps; GNOME does not let
+  extensions remove them reliably.
 - Some single-instance apps may not open a second window when one is already
   running.
 
 ## Development
 
-Requires [Bun](https://bun.sh/) (or Node) and TypeScript. Source under `src/` is
-compiled with `tsc` into separate modules under `dist/` — not bundled into one
-file, which the extensions.gnome.org review process requires.
+Requires [Bun](https://bun.sh/). Source under `src/` compiles with `tsc` into
+separate modules under `dist/` — not bundled into one file, which the
+extensions.gnome.org review process requires.
 
 ```bash
 bun install
-bun run build          # tsc → dist/*.js (+ dist/prefs/)
-bun run schemas        # compile GSettings schemas
+bun run build          # tsc → dist/, lint, compile schemas, sync metadata into dist/
+bun run test           # 23 tests over the parsing and geometry layers
 bun run lint           # build, then eslint the emitted JS
-bun run pack           # stage the modular tree and pack the zip
 bun run install-ext    # stage and install into ~/.local/share/...
+bun run pack           # produce the shell-extension zip
 ```
 
-Packed runtime layout:
+`bun run build` leaves `dist/` complete and installable — compiled JS plus
+`metadata.json` and `schemas/`. **Commit `dist/` along with your source
+changes**, or the prebuilt install path above goes stale.
 
-- `extension.js`, `prefs.js` (entry points)
-- `types.js`, `geometry.js`, `keybindings.js`, `quake-manager.js`
-- `prefs/conflicts.js`, `prefs/shortcut-dialog.js`
-- `metadata.json`, `LICENSE`, `schemas/`
+### Testing a change
 
-### Releasing
+GNOME Shell 50 dropped mutter's nested backend along with X11 session support,
+so `gnome-shell --nested` no longer exists and there is **no way to run a test
+shell in a window**. Verifying a change costs either:
 
-1. Update `version-name` in `metadata.json` and `version` in `package.json` to
-   the same value.
-2. Add the release section to [CHANGELOG.md](CHANGELOG.md).
-3. `bun run pack` to produce the zip.
-4. Tag (`git tag -a v1.0.2 -m 'v1.0.2'`) and push.
-5. Create the GitHub release with the changelog section as the body and the zip
-   attached, then upload the same zip to extensions.gnome.org.
+- a **logout/login**, or
+- a **second VT** — Ctrl+Alt+F3, log in, then
+  `dbus-run-session -- gnome-shell --display-server --wayland`, and Ctrl+Alt+F2
+  to come back. Never `sudo` it; that strips `WAYLAND_DISPLAY`.
 
-The zip is generated, not committed — it is attached to releases only.
+Because iteration is expensive, batch changes and run `bun run build` before
+logging out. A `tsc --watch` dies with the session.
+
+Only the pure layers (`src/types.ts`, `src/geometry.ts`) have unit tests.
+Everything in `src/quake-manager.ts` needs a live compositor and is verified by
+hand.
+
+### Debugging
+
+```bash
+journalctl --user -b -o cat /usr/bin/gnome-shell | grep quake-anything
+```
+
+For tracing who mutates a window actor, `console.log` with
+`new Error().stack` inside a `notify::<property>` handler works well — note that
+grepping for your own tag will filter the stack lines out, so use `grep -A`.
+
+### Design notes
+
+`docs/superpowers/` holds the design spec and implementation plan for the
+drawer work, including why settings moved to JSON and why the resize-memory
+layer was removed. Useful background before changing the geometry or settings
+code.
 
 ## Changelog
 
@@ -121,6 +167,6 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-[GPL-2.0-or-later](LICENSE) © 2026 Quake Anything contributors
+[GPL-2.0-or-later](LICENSE), as upstream. © 2026 Quake Anything contributors
 
 **UUID:** `quake-anything@yccoskun.github.io`

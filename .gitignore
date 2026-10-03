@@ -20,11 +20,10 @@ node_modules.bun
 Thumbs.db
 *~
 
-# --- Build outputs (modular tsc emit + pack staging) ---
-dist/
+# --- Build outputs (dist/ IS committed: see README, installable without a toolchain) ---
 build/
-extension.js
-prefs.js
+/extension.js
+/prefs.js
 
 # Compiled GSettings schemas or translation binaries
 /schemas/gschemas.compiled

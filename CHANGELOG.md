@@ -1,11 +1,69 @@
 # Changelog
 
-All notable changes to Quake Anything are documented here.
+All notable changes to Quake Anything Extended are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+This is a personal fork of
+[yccoskun/quake-anything](https://github.com/yccoskun/quake-anything). The 1.0.x entries below are
+upstream's. Nothing in this fork is tagged or released; the entry below exists
+to record what diverged and why.
 
-## [Unreleased]
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased] - fork divergence (2026-10-03)
+
+Turns an edge-anchored slab into a proper drawer. Defaults are chosen so a
+migrated configuration behaves exactly as it did before; every new behaviour is
+opt-in from Preferences.
+
+### Added
+
+- **Width** (10–100%) for top/bottom docks. The window takes that share of the
+  work area and is centred horizontally. 100% reproduces the old full-width
+  behaviour byte-for-byte.
+- **Sticky** — keep a drawer on every workspace via `Meta.Window.stick()`,
+  instead of dragging it to the active one on each toggle.
+- **Opacity** (10–100%) per entry.
+
+### Changed
+
+- **Settings are now JSON.** The `entries` key (`a(ssssi)`) is superseded by
+  `app-entries` (`as`), one JSON object per entry. GVariant tuple types are not
+  extensible, so every new field used to be a breaking type change; absent keys
+  now simply take their default. The legacy key stays declared in the schema so
+  a one-time migration can read it — it runs from both `enable()` and the
+  preferences process, and is idempotent.
+- **Hiding animates.** Both directions now slide through the dock's own edge.
+  Previously `_hide` just called `minimize()` and let the shell's stock effect
+  fly the window at its dash icon — the wrong direction for any edge but the
+  top. Both paths suppress the stock effect with `Main.wm.skipNextEffect()`.
+- **Showing always resets geometry.** A drawer that was resized, maximised or
+  fullscreened returns to its configured size on the next toggle. The
+  live-geometry layer that remembered manual resizes is gone, and fullscreen is
+  now undone as well as maximised — `unmaximize()` alone never cleared it.
+
+### Fixed
+
+- Preferences listened on the renamed-away `entries` key, so the list never
+  refreshed after a write and a deleted entry could be written back.
+- JSON `null`, `false` or `[]` in a numeric field coerced to `0` and clamped to
+  the *minimum* rather than falling back to the default.
+- A cancelled hide slide no longer minimises a window the extension is
+  releasing (`onStopped` now honours `isFinished`).
+- Per-entry opacity survives window effects. `_show` cancelled the shell's
+  in-flight unminimise transition *after* applying opacity, and the resulting
+  `_unminimizeWindowDone` forced it back to 255.
+- Opacity no longer flashes to 100% during a workspace switch. The shell paints
+  a `Clutter.Clone` of each window using the clone's own opacity;
+  `clone-opacity.ts` copies the source's across.
+- `stick()`/`unstick()` skip override-redirect windows, which tripped a
+  `meta_window_stick` assertion.
+
+### Development
+
+- `bun test` suite (23 tests) over the pure settings-parsing and geometry
+  layers.
+- `dist/` is committed, so the extension can be installed without a toolchain.
+
 
 ## [1.0.1] - 2026-08-25
 
@@ -46,6 +104,5 @@ Initial release on [extensions.gnome.org](https://extensions.gnome.org/extension
   conflict warnings against existing GNOME shortcuts.
 - GNOME Shell 46–50 support.
 
-[Unreleased]: https://github.com/yccoskun/quake-anything/compare/v1.0.1...HEAD
 [1.0.1]: https://github.com/yccoskun/quake-anything/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/yccoskun/quake-anything/releases/tag/v1.0.0

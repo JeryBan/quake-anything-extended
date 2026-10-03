@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="quake-anything">
+  <schema id="org.gnome.shell.extensions.quake-anything"
+          path="/org/gnome/shell/extensions/quake-anything/">
+    <key name="app-entries" type="as">
+      <default>[]</default>
+      <summary>Quake application entries</summary>
+      <description>
+        Configured Quake-mode applications, one JSON object per entry with
+        keys: id, appId, side, shortcut, sizePercent, widthPercent, sticky,
+        opacity. Unknown keys are ignored and absent keys take their default.
+      </description>
+    </key>
+
+    <!--
+      Legacy key, retained only so the one-time migration can read a
+      configuration written before app-entries existed. Changing a key's
+      type in place makes GSettings fall back to the default and the user's
+      configuration disappears silently, so this declaration must stay.
+    -->
+    <key name="entries" type="a(ssssi)">
+      <default>[]</default>
+      <summary>Legacy entries (migrated to app-entries)</summary>
+      <description>Superseded by app-entries. Reset after migration.</description>
+    </key>
+  </schema>
+</schemalist>
