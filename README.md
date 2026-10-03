@@ -31,7 +31,7 @@ the path for a machine where you don't want Bun or TypeScript:
 ```bash
 git clone <this-repo> quake-anything-extended
 cd quake-anything-extended
-UUID=quake-anything@yccoskun.github.io
+UUID=quake-anything-extended@jeryban.gr
 mkdir -p ~/.local/share/gnome-shell/extensions/$UUID
 cp -r dist/. ~/.local/share/gnome-shell/extensions/$UUID/
 gnome-extensions enable $UUID
@@ -46,7 +46,7 @@ exist until it has.
 ```bash
 bun install
 bun run install-ext
-gnome-extensions enable quake-anything@yccoskun.github.io
+gnome-extensions enable quake-anything-extended@jeryban.gr
 ```
 
 Also needs a logout.
@@ -95,9 +95,14 @@ flush with the bottom edge.
   first time this version runs, from either the shell or the preferences
   window. Fields absent from an entry take defaults that reproduce upstream
   behaviour, so nothing changes until you opt in.
-- The UUID is still `quake-anything@yccoskun.github.io`. It is the installed
-  directory name and the owner of the settings schema, so renaming it would
-  orphan your configuration.
+- The UUID is `quake-anything-extended@jeryban.gr`, deliberately different from
+  upstream's so both can live in `~/.local/share/gnome-shell/extensions/`
+  without one overwriting the other. It controls only the install directory
+  name and the entry in dconf's `enabled-extensions`.
+- The settings schema is still upstream's,
+  `org.gnome.shell.extensions.quake-anything`, storing config at
+  `/org/gnome/shell/extensions/quake-anything/`. That is what owns your
+  configuration — changing it, not the UUID, is what would orphan it.
 - `src/clone-opacity.ts` patches a GNOME Shell prototype
   (`WorkspaceGroup._createClone`) so workspace-switch clones inherit window
   opacity. It restores the original on disable, but it is the first thing to
@@ -169,4 +174,4 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 [GPL-2.0-or-later](LICENSE), as upstream. © 2026 Quake Anything contributors
 
-**UUID:** `quake-anything@yccoskun.github.io`
+**UUID:** `quake-anything-extended@jeryban.gr`

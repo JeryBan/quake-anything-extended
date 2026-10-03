@@ -31,4 +31,4 @@ build/
 
 # Production bundle generated via 'gnome-extensions pack'
 *.shell-extension.zip
-quake-anything@yccoskun.github.io.shell-extension.zip
+quake-anything-extended@jeryban.gr.shell-extension.zip
