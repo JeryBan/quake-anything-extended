@@ -84,6 +84,8 @@ flush with the bottom edge.
 - Show and hide both **slide through the dock's own edge**
 - **Every toggle resets the geometry.** Move, resize, maximise or fullscreen the
   drawer freely — the next toggle puts it back exactly where settings say
+- **Hidden from the overview and Alt-Tab**, so a sticky drawer does not clutter
+  every workspace's window list. The shortcut is the only way to summon it
 - Only windows **spawned by this extension** are controlled; other windows of
   the same app are left alone
 - Windows survive suspend and resume in place
@@ -103,10 +105,16 @@ flush with the bottom edge.
   `org.gnome.shell.extensions.quake-anything`, storing config at
   `/org/gnome/shell/extensions/quake-anything/`. That is what owns your
   configuration — changing it, not the UUID, is what would orphan it.
+- `src/overview-visibility.ts` shadows `skip_taskbar` on the drawer's window so
+  GNOME Shell leaves it out of the overview and Alt-Tab, the way guake does by
+  setting `_NET_WM_STATE_SKIP_TASKBAR` on its own X11 window. Because the
+  drawer is not in Alt-Tab, its keyboard shortcut is the only way to reach it.
 - `src/clone-opacity.ts` patches a GNOME Shell prototype
   (`WorkspaceGroup._createClone`) so workspace-switch clones inherit window
-  opacity. It restores the original on disable, but it is the first thing to
-  check after a GNOME upgrade.
+  opacity. It restores the original on disable. Along with
+  `overview-visibility.ts`, these two depend on GNOME Shell internals and are
+  the first things to check after a shell upgrade; both fail soft (the
+  behaviour stops, nothing breaks).
 - Client-side window buttons stay visible for many apps; GNOME does not let
   extensions remove them reliably.
 - Some single-instance apps may not open a second window when one is already
@@ -121,7 +129,7 @@ extensions.gnome.org review process requires.
 ```bash
 bun install
 bun run build          # tsc → dist/, lint, compile schemas, sync metadata into dist/
-bun run test           # 23 tests over the parsing and geometry layers
+bun run test           # 29 tests over the pure layers
 bun run lint           # build, then eslint the emitted JS
 bun run install-ext    # stage and install into ~/.local/share/...
 bun run pack           # produce the shell-extension zip

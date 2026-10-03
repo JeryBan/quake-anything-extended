@@ -23,6 +23,13 @@ opt-in from Preferences.
 - **Sticky** — keep a drawer on every workspace via `Meta.Window.stick()`,
   instead of dragging it to the active one on each toggle.
 - **Opacity** (10–100%) per entry.
+- Drawers are hidden from the overview's window list and from Alt-Tab.
+  `Meta.Window.skip_taskbar` is read-only and mutter derives it from hints a
+  Wayland client we did not write will never set, so an own property shadows
+  the GObject getter on our window alone — both shell readers
+  (`ui/workspace.js`, `ui/altTab.js`) access it from JavaScript. Restored on
+  detach, uncovering the window's real value rather than forcing `false`.
+  Consequence: the keyboard shortcut is the only way to summon a drawer.
 
 ### Changed
 
@@ -60,9 +67,12 @@ opt-in from Preferences.
 
 ### Development
 
-- `bun test` suite (23 tests) over the pure settings-parsing and geometry
-  layers.
+- `bun test` suite (29 tests) over the pure settings-parsing, geometry and
+  overview-visibility layers.
 - `dist/` is committed, so the extension can be installed without a toolchain.
+- Own UUID, `quake-anything-extended@jeryban.gr`, so this fork and upstream can
+  be installed side by side. `settings-schema` is deliberately left at
+  upstream's value — it, not the UUID, owns the dconf path.
 
 
 ## [1.0.1] - 2026-08-25
