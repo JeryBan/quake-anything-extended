@@ -27,6 +27,10 @@ export function isQuakeSide(value: string): value is QuakeSide {
 }
 
 function clampInt(value: unknown, lo: number, hi: number, fallback: number): number {
+    // Number(null), Number(false) and Number([]) are all 0 - finite, so the
+    // isFinite guard alone would silently clamp them to the minimum.
+    if (typeof value !== 'number' && typeof value !== 'string')
+        return fallback;
     const n = Math.round(Number(value));
     if (!Number.isFinite(n))
         return fallback;
@@ -91,6 +95,37 @@ export function migrateTuples(raw: QuakeEntryTuple[]): QuakeEntry[] {
         });
     }
     return entries;
+}
+
+/** Structural shape of the bits of Gio.Settings the migration needs. */
+export interface MigratableSettings {
+    get_strv(key: string): string[];
+    set_strv(key: string, value: string[]): void;
+    get_value(key: string): {deep_unpack(): unknown};
+    reset(key: string): void;
+}
+
+/**
+ * Move the legacy `entries` tuples into `app-entries`, once.
+ *
+ * Called from BOTH enable() and the prefs process: a user who opens
+ * Preferences while the extension is disabled would otherwise see an empty
+ * list, and saving from that state orphans the legacy config permanently.
+ * Guarded on the target being empty, so calling it twice is harmless.
+ *
+ * @returns how many legacy entries were migrated.
+ */
+export function ensureMigrated(settings: MigratableSettings): number {
+    if (settings.get_strv('app-entries').length > 0)
+        return 0;
+
+    const legacy = settings.get_value('entries').deep_unpack();
+    if (!Array.isArray(legacy) || legacy.length === 0)
+        return 0;
+
+    settings.set_strv('app-entries', entriesToJson(migrateTuples(legacy as QuakeEntryTuple[])));
+    settings.reset('entries');
+    return legacy.length;
 }
 
 export function createEntryId(): string {

@@ -174,3 +174,24 @@ directions, switch workspaces while visible, confirm translucency.
 - **Migration runs once.** If it is interrupted between writing `app-entries`
   and resetting `entries`, re-running is harmless — the guard is "app-entries
   empty", so a populated target is never overwritten.
+
+---
+
+## Amendment — 2026-10-03: drawers always reset to configured geometry
+
+Supersedes the `percentFromRect` two-axis requirement in the Geometry section.
+
+A drawer that was maximised, fullscreened or drag-resized kept those
+dimensions across a toggle, because `_hide` measured the live frame and wrote
+it back as the entry's percentages. Fullscreen was never undone at all:
+`unmaximizeWindow` checked only `get_maximize_flags()`.
+
+**Now:** every show places the drawer at exactly the width and height in
+settings. The live-geometry layer (`_liveGeom`, `PERSISTENT_GEOM`,
+`_rememberQuakePercent`, `percentFromRect`, `percentsInArea`) is removed, and
+`restoreWindowState` undoes fullscreen as well as maximised before placing.
+Drag-resizing is now temporary, lasting until the next toggle.
+
+This also dissolves review finding 3 (a settings change could not reach an
+already-open drawer, because the live value always won) rather than patching
+it: with no live value there is nothing to invalidate.

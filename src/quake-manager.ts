@@ -10,7 +10,6 @@ import {
     computeQuakeRect,
     getPointerMonitorIndex,
     isValidRect,
-    percentFromRect,
     sanitizeMonitorIndex,
     slideOffsetForSide,
 } from './geometry.js';
@@ -18,13 +17,7 @@ import {formatMessage, type QuakeEntry} from './types.js';
 
 // Persistent module-level state to remember windows and their geometries
 // across disable/enable cycles (such as when the system is suspended).
-interface LiveGeom {
-    sizePercent: number;
-    widthPercent: number;
-}
-
 const PERSISTENT_WINDOWS = new Map<number, string>();
-const PERSISTENT_GEOM = new Map<string, LiveGeom>();
 const PERSISTENT_MONITOR = new Map<string, number>();
 
 const ANIM_MS = 180;
@@ -42,8 +35,14 @@ interface FirstFrameWatch {
     fallbackId: number;
 }
 
-/** Shell 49+: unmaximize with no flags argument. */
-function unmaximizeWindow(win: Meta.Window): void {
+/**
+ * Return a window to a plain, resizable state before re-placing it.
+ * Fullscreen is a separate state from maximised: unmaximize() alone leaves a
+ * fullscreened drawer fullscreen, so re-summoning would not reset it.
+ */
+function restoreWindowState(win: Meta.Window): void {
+    if (win.is_fullscreen())
+        win.unmake_fullscreen();
     if (win.get_maximize_flags() !== 0)
         win.unmaximize();
 }
@@ -51,7 +50,6 @@ function unmaximizeWindow(win: Meta.Window): void {
 export class QuakeManager {
     private _entries = new Map<string, QuakeEntry>();
     private _windows = new Map<string, Meta.Window>();
-    private _liveGeom = new Map<string, LiveGeom>();
     private _lastMonitor = new Map<string, number>();
     private _pending: PendingClaim | null = null;
     private _animating = new Set<string>();
@@ -102,7 +100,6 @@ export class QuakeManager {
         for (const id of [...this._windows.keys()])
             this._detachWindow(id, false);
         this._entries.clear();
-        this._liveGeom.clear();
         this._lastMonitor.clear();
         this._applyingGeometry.clear();
         this._animating.clear();
@@ -114,7 +111,6 @@ export class QuakeManager {
         for (const id of [...this._entries.keys()]) {
             if (!nextIds.has(id)) {
                 this._detachWindow(id, false);
-                this._liveGeom.delete(id);
                 this._lastMonitor.delete(id);
             }
         }
@@ -253,22 +249,17 @@ export class QuakeManager {
         this._applyWindowTraits(win, entry);
 
         if (!isRestore) {
-            this._liveGeom.delete(entryId);
             this._lastMonitor.delete(entryId);
         }
 
         win.connectObject('unmanaged', () => {
             PERSISTENT_WINDOWS.delete(win.get_id());
-            PERSISTENT_GEOM.delete(entryId);
             PERSISTENT_MONITOR.delete(entryId);
             if (this._windows.get(entryId) === win)
                 this._detachWindow(entryId, true);
         }, this);
 
         if (isRestore) {
-            const geom = PERSISTENT_GEOM.get(entryId);
-            if (geom !== undefined)
-                this._liveGeom.set(entryId, geom);
             const mon = PERSISTENT_MONITOR.get(entryId);
             if (mon !== undefined)
                 this._lastMonitor.set(entryId, mon);
@@ -338,7 +329,6 @@ export class QuakeManager {
         this._windows.delete(entryId);
         this._applyingGeometry.delete(entryId);
         if (resetSessionState) {
-            this._liveGeom.delete(entryId);
             this._lastMonitor.delete(entryId);
         }
     }
@@ -395,14 +385,6 @@ export class QuakeManager {
         });
     }
 
-    private _effectiveGeom(entryId: string, entry: QuakeEntry): LiveGeom {
-        const live = this._liveGeom.get(entryId);
-        return {
-            sizePercent: live?.sizePercent ?? entry.sizePercent,
-            widthPercent: live?.widthPercent ?? entry.widthPercent,
-        };
-    }
-
     /** Apply the per-entry traits that are independent of geometry. */
     private _applyWindowTraits(win: Meta.Window, entry: QuakeEntry): void {
         if (!this._isWindowAlive(win))
@@ -420,31 +402,6 @@ export class QuakeManager {
         }
     }
 
-    private _rememberQuakePercent(entryId: string, win: Meta.Window, entry: QuakeEntry): void {
-        if (!this._isWindowAlive(win))
-            return;
-
-        const frame = win.get_frame_rect();
-        const monitor = sanitizeMonitorIndex(win.get_monitor());
-        const percents = percentFromRect(
-            entry.side,
-            { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
-            monitor,
-        );
-
-        const previous = this._effectiveGeom(entryId, entry);
-        const next: LiveGeom = {
-            sizePercent: percents.sizePercent,
-            // Absent for left/right - keep whatever width was stored.
-            widthPercent: percents.widthPercent ?? previous.widthPercent,
-        };
-
-        this._liveGeom.set(entryId, next);
-        this._lastMonitor.set(entryId, monitor);
-        PERSISTENT_GEOM.set(entryId, next);
-        PERSISTENT_MONITOR.set(entryId, monitor);
-    }
-
     private _applyQuakeGeometry(
         entryId: string,
         win: Meta.Window,
@@ -454,12 +411,11 @@ export class QuakeManager {
         if (!this._isWindowAlive(win))
             return;
 
-        const geom = this._effectiveGeom(entryId, entry);
         const rawMonitor = usePointerMonitor
             ? getPointerMonitorIndex()
             : win.get_monitor();
         const monitor = sanitizeMonitorIndex(rawMonitor);
-        const rect = computeQuakeRect(entry.side, geom.sizePercent, geom.widthPercent, monitor);
+        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.widthPercent, monitor);
         if (!isValidRect(rect)) {
             console.error('[quake-anything] refusing invalid quake rect', rect);
             return;
@@ -467,7 +423,7 @@ export class QuakeManager {
 
         this._applyingGeometry.add(entryId);
         try {
-            unmaximizeWindow(win);
+            restoreWindowState(win);
 
             if (sanitizeMonitorIndex(win.get_monitor()) !== monitor)
                 win.move_to_monitor(monitor);
@@ -483,10 +439,6 @@ export class QuakeManager {
             win.move_resize_frame(false, rect.x, rect.y, rect.width, rect.height);
             this._lastMonitor.set(entryId, monitor);
             PERSISTENT_MONITOR.set(entryId, monitor);
-            if (!this._liveGeom.has(entryId)) {
-                this._liveGeom.set(entryId, geom);
-                PERSISTENT_GEOM.set(entryId, geom);
-            }
         } finally {
             this._idleAdd(GLib.PRIORITY_DEFAULT_IDLE, () => {
                 this._applyingGeometry.delete(entryId);
@@ -535,11 +487,10 @@ export class QuakeManager {
         if (!actor)
             return;
 
-        const geom = this._effectiveGeom(entryId, entry);
         const rect = computeQuakeRect(
             entry.side,
-            geom.sizePercent,
-            geom.widthPercent,
+            entry.sizePercent,
+            entry.widthPercent,
             sanitizeMonitorIndex(win.get_monitor()),
         );
         if (!isValidRect(rect))
@@ -568,19 +519,16 @@ export class QuakeManager {
             return;
         }
 
-        this._rememberQuakePercent(entryId, win, entry);
-
         const actor = win.get_compositor_private() as Clutter.Actor | null;
         if (!actor) {
             win.minimize();
             return;
         }
 
-        const geom = this._effectiveGeom(entryId, entry);
         const rect = computeQuakeRect(
             entry.side,
-            geom.sizePercent,
-            geom.widthPercent,
+            entry.sizePercent,
+            entry.widthPercent,
             sanitizeMonitorIndex(win.get_monitor()),
         );
         if (!isValidRect(rect)) {
@@ -598,8 +546,13 @@ export class QuakeManager {
             translationY: offset.y,
             duration: ANIM_MS,
             mode: Clutter.AnimationMode.EASE_IN_CUBIC,
-            onStopped: () => {
+            onStopped: (isFinished: boolean) => {
                 this._animating.delete(entryId);
+                // remove_all_transitions() during _detachWindow/disable() stops
+                // the timeline with isFinished=false; minimising there would
+                // hide a user window the extension is giving up.
+                if (!isFinished)
+                    return;
                 if (!this._isWindowAlive(win))
                     return;
                 // Minimise only once the drawer is offscreen, with the stock

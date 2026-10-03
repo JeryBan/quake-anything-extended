@@ -1,6 +1,7 @@
 import {describe, expect, test} from 'bun:test';
 import {
     ENTRY_DEFAULTS,
+    ensureMigrated,
     entriesToJson,
     migrateTuples,
     parseEntries,
@@ -86,5 +87,74 @@ describe('migrateTuples', () => {
 
     test('skips short or malformed tuples', () => {
         expect(migrateTuples([['a', 'b'] as never])).toEqual([]);
+    });
+});
+
+describe('clampInt via parseEntries: non-numeric JSON values', () => {
+    test('null / false / [] fall back to defaults, not the clamp minimum', () => {
+        const raw = [JSON.stringify({
+            id: 'x',
+            appId: 'a.desktop',
+            side: 'bottom',
+            opacity: null,
+            widthPercent: false,
+            sizePercent: [],
+        })];
+        const [entry] = parseEntries(raw);
+        expect(entry.opacity).toBe(ENTRY_DEFAULTS.opacity);
+        expect(entry.widthPercent).toBe(ENTRY_DEFAULTS.widthPercent);
+        expect(entry.sizePercent).toBe(ENTRY_DEFAULTS.sizePercent);
+    });
+
+    test('numeric strings are still accepted', () => {
+        const raw = [JSON.stringify({
+            id: 'x', appId: 'a.desktop', side: 'bottom', sizePercent: '55',
+        })];
+        expect(parseEntries(raw)[0].sizePercent).toBe(55);
+    });
+});
+
+describe('ensureMigrated', () => {
+    class FakeSettings {
+        strv: Record<string, string[]> = {'app-entries': []};
+        legacy: unknown[] = [];
+        resetCalls: string[] = [];
+        get_strv(k: string): string[] { return this.strv[k] ?? []; }
+        set_strv(k: string, v: string[]): void { this.strv[k] = v; }
+        get_value(_k: string) { return {deep_unpack: () => this.legacy}; }
+        reset(k: string): void { this.resetCalls.push(k); this.legacy = []; }
+    }
+
+    const tuple = ['entry-musp', 'org.gnome.Nautilus.desktop', 'bottom', '<Control><Alt>n', 45];
+
+    test('migrates legacy tuples and resets the old key', () => {
+        const s = new FakeSettings();
+        s.legacy = [tuple];
+        expect(ensureMigrated(s)).toBe(1);
+        expect(parseEntries(s.strv['app-entries'])[0].appId).toBe('org.gnome.Nautilus.desktop');
+        expect(s.resetCalls).toEqual(['entries']);
+    });
+
+    test('is idempotent - a second call does nothing', () => {
+        const s = new FakeSettings();
+        s.legacy = [tuple];
+        ensureMigrated(s);
+        expect(ensureMigrated(s)).toBe(0);
+        expect(s.resetCalls).toEqual(['entries']);
+    });
+
+    test('never clobbers an already-populated app-entries', () => {
+        const s = new FakeSettings();
+        s.strv['app-entries'] = entriesToJson([full]);
+        s.legacy = [tuple];
+        expect(ensureMigrated(s)).toBe(0);
+        expect(parseEntries(s.strv['app-entries'])).toEqual([full]);
+        expect(s.resetCalls).toEqual([]);
+    });
+
+    test('no-op when there is nothing to migrate', () => {
+        const s = new FakeSettings();
+        expect(ensureMigrated(s)).toBe(0);
+        expect(s.resetCalls).toEqual([]);
     });
 });

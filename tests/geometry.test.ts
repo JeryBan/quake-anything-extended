@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'bun:test';
-import {computeRectInArea, percentsInArea} from '../src/geometry.js';
+import {computeRectInArea} from '../src/geometry.js';
 
 // A 2560x1440 monitor with a 37px top bar reserved.
 const work = {x: 0, y: 37, width: 2560, height: 1403};
@@ -70,22 +70,5 @@ describe('computeRectInArea: clamping', () => {
             expect(r.x).toBeGreaterThanOrEqual(work.x);
             expect(r.x + r.width).toBeLessThanOrEqual(work.x + work.width);
         }
-    });
-});
-
-describe('percentsInArea', () => {
-    test('round-trips both axes for bottom', () => {
-        const rect = computeRectInArea('bottom', 45, 50, work);
-        expect(percentsInArea('bottom', rect, work)).toEqual({
-            sizePercent: 45,
-            widthPercent: 50,
-        });
-    });
-
-    test('reports no width axis for left and right', () => {
-        const rect = computeRectInArea('left', 40, 100, work);
-        const p = percentsInArea('left', rect, work);
-        expect(p.sizePercent).toBe(40);
-        expect(p.widthPercent).toBeUndefined();
     });
 });

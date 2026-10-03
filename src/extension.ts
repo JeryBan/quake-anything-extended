@@ -4,14 +4,7 @@ import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/ex
 
 import {KeybindingManager} from './keybindings.js';
 import {QuakeManager} from './quake-manager.js';
-import {
-    entriesToJson,
-    formatMessage,
-    migrateTuples,
-    parseEntries,
-    type QuakeEntry,
-    type QuakeEntryTuple,
-} from './types.js';
+import {ensureMigrated, formatMessage, parseEntries, type QuakeEntry} from './types.js';
 
 export default class QuakeAnythingExtension extends Extension {
     private _settings: Gio.Settings | null = null;
@@ -23,7 +16,7 @@ export default class QuakeAnythingExtension extends Extension {
         this.initTranslations();
 
         this._settings = this.getSettings();
-        this._migrateLegacyEntries();
+        ensureMigrated(this._settings);
         this._quake = new QuakeManager();
         this._keys = new KeybindingManager();
 
@@ -54,26 +47,6 @@ export default class QuakeAnythingExtension extends Extension {
         const entries = parseEntries(this._settings.get_strv('app-entries'));
         this._quake.setEntries(entries);
         this._rebindKeys(entries);
-    }
-
-    /**
-     * One-time move from the legacy `entries` tuple key to `app-entries`.
-     * Guarded on the target being empty, so re-running is harmless.
-     */
-    private _migrateLegacyEntries(): void {
-        const settings = this._settings;
-        if (!settings)
-            return;
-        if (settings.get_strv('app-entries').length > 0)
-            return;
-
-        const legacy = settings.get_value('entries').deep_unpack() as QuakeEntryTuple[];
-        if (legacy.length === 0)
-            return;
-
-        settings.set_strv('app-entries', entriesToJson(migrateTuples(legacy)));
-        settings.reset('entries');
-        console.log(`[quake-anything] migrated ${legacy.length} entries to app-entries`);
     }
 
     private _rebindKeys(entries: QuakeEntry[]): void {

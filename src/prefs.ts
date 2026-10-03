@@ -11,6 +11,7 @@ import {ShortcutDialog} from './prefs/shortcut-dialog.js';
 import {
     createEntryId,
     ENTRY_DEFAULTS,
+    ensureMigrated,
     entriesToJson,
     formatMessage,
     isQuakeSide,
@@ -51,6 +52,9 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
 
     async fillPreferencesWindow(window: PrefsHost): Promise<void> {
         const settings = this.getSettings();
+        // Also migrate here: a user opening Preferences while the extension is
+        // disabled would otherwise see an empty list and orphan their config.
+        ensureMigrated(settings);
         (window as PrefsHost & {_settings?: Gio.Settings})._settings = settings;
         this._window = window;
         this._settings = settings;
@@ -72,7 +76,7 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
         page.add(this._listGroup);
 
         this._rebuildList();
-        this._settingsChangedId = settings.connect('changed::entries', () => {
+        this._settingsChangedId = settings.connect('changed::app-entries', () => {
             this._rebuildList();
         });
         window.connect('close-request', () => {

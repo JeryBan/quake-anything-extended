@@ -110,39 +110,6 @@ export function computeQuakeRect(
     );
 }
 
-/**
- * Derive stored percentages from an actual frame, so a manual resize is
- * remembered. `widthPercent` is absent for left/right, whose width is driven
- * by `sizePercent`; callers must leave the stored value alone in that case.
- */
-export function percentsInArea(
-    side: QuakeSide,
-    rect: Rect,
-    work: Rect,
-): {sizePercent: number; widthPercent?: number} {
-    if (side === 'top' || side === 'bottom') {
-        const sizeRatio = work.height > 0 ? rect.height / work.height : 0.4;
-        const widthRatio = work.width > 0 ? rect.width / work.width : 1;
-        return {
-            sizePercent: Math.min(90, Math.max(10, Math.round(sizeRatio * 100))),
-            widthPercent: Math.min(100, Math.max(10, Math.round(widthRatio * 100))),
-        };
-    }
-
-    const sizeRatio = work.width > 0 ? rect.width / work.width : 0.4;
-    return {
-        sizePercent: Math.min(90, Math.max(10, Math.round(sizeRatio * 100))),
-    };
-}
-
-export function percentFromRect(
-    side: QuakeSide,
-    rect: Rect,
-    monitorIndex: number,
-): {sizePercent: number; widthPercent?: number} {
-    return percentsInArea(side, rect, getWorkAreaForMonitor(monitorIndex));
-}
-
 export function slideOffsetForSide(side: QuakeSide, rect: Rect): { x: number; y: number } {
     switch (side) {
     case 'top':
