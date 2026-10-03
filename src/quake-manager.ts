@@ -13,6 +13,7 @@ import {
     sanitizeMonitorIndex,
     slideOffsetForSide,
 } from './geometry.js';
+import {hideFromOverview, restoreOverviewVisibility} from './overview-visibility.js';
 import {formatMessage, type QuakeEntry} from './types.js';
 
 // Persistent module-level state to remember windows and their geometries
@@ -246,6 +247,9 @@ export class QuakeManager {
 
         this._windows.set(entryId, win);
         PERSISTENT_WINDOWS.set(win.get_id(), entryId);
+        // A drawer is summoned by its shortcut, so listing it in the overview
+        // and Alt-Tab on every workspace is just clutter.
+        hideFromOverview(win);
         this._applyWindowTraits(win, entry);
 
         if (!isRestore) {
@@ -325,6 +329,8 @@ export class QuakeManager {
             }
             win.unstick();
         }
+        if (win)
+            restoreOverviewVisibility(win);
 
         this._windows.delete(entryId);
         this._applyingGeometry.delete(entryId);

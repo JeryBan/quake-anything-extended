@@ -5,6 +5,7 @@ import Shell from 'gi://Shell';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { computeQuakeRect, getPointerMonitorIndex, isValidRect, sanitizeMonitorIndex, slideOffsetForSide, } from './geometry.js';
+import { hideFromOverview, restoreOverviewVisibility } from './overview-visibility.js';
 import { formatMessage } from './types.js';
 // Persistent module-level state to remember windows and their geometries
 // across disable/enable cycles (such as when the system is suspended).
@@ -202,6 +203,9 @@ export class QuakeManager {
             this._detachWindow(entryId, false);
         this._windows.set(entryId, win);
         PERSISTENT_WINDOWS.set(win.get_id(), entryId);
+        // A drawer is summoned by its shortcut, so listing it in the overview
+        // and Alt-Tab on every workspace is just clutter.
+        hideFromOverview(win);
         this._applyWindowTraits(win, entry);
         if (!isRestore) {
             this._lastMonitor.delete(entryId);
@@ -270,6 +274,8 @@ export class QuakeManager {
             }
             win.unstick();
         }
+        if (win)
+            restoreOverviewVisibility(win);
         this._windows.delete(entryId);
         this._applyingGeometry.delete(entryId);
         if (resetSessionState) {

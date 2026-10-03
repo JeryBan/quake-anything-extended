@@ -11,7 +11,7 @@
     "test": "bun test",
     "stage": "bash scripts/stage.sh",
     "lint": "bun run build && eslint \"dist/**/*.js\"",
-    "pack": "bun run stage && (cd build && gnome-extensions pack --force --extra-source=LICENSE --extra-source=types.js --extra-source=geometry.js --extra-source=clone-opacity.js --extra-source=keybindings.js --extra-source=quake-manager.js --extra-source=prefs .) && mv -f build/quake-anything-extended@jeryban.gr.shell-extension.zip .",
+    "pack": "bun run stage && (cd build && gnome-extensions pack --force --extra-source=LICENSE --extra-source=types.js --extra-source=geometry.js --extra-source=clone-opacity.js --extra-source=overview-visibility.js --extra-source=keybindings.js --extra-source=quake-manager.js --extra-source=prefs .) && mv -f build/quake-anything-extended@jeryban.gr.shell-extension.zip .",
     "install-ext": "bun run stage && mkdir -p \"$HOME/.local/share/gnome-shell/extensions/quake-anything-extended@jeryban.gr\" && rsync -a --delete build/ \"$HOME/.local/share/gnome-shell/extensions/quake-anything-extended@jeryban.gr/\""
   },
   "devDependencies": {
