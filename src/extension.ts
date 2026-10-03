@@ -74,7 +74,7 @@ export default class QuakeAnythingExtension extends Extension {
                 this._boundIds.add(entry.id);
             } else {
                 Main.notify(
-                    _('Quake Anything'),
+                    _('Quake Anything Extended'),
                     formatMessage(
                         _('Shortcut "%s" is already in use and could not be bound.'),
                         entry.shortcut,

@@ -19,7 +19,7 @@ export function findShortcutConflict(
 
     for (const ours of excludeOurShortcuts) {
         if (normalizeAccel(ours) === normalized)
-            return _('another Quake Anything entry');
+            return _('another Quake Anything Extended entry');
     }
 
     const schemaSources = [

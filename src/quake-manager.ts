@@ -156,7 +156,7 @@ export class QuakeManager {
         const app = this._resolveApp(entry.appId);
         if (!app) {
             Main.notify(
-                _('Quake Anything'),
+                _('Quake Anything Extended'),
                 formatMessage(_('Could not find app: %s'), entry.appId),
             );
             return;
@@ -166,7 +166,7 @@ export class QuakeManager {
         const timeoutId = this._timeoutAdd(GLib.PRIORITY_DEFAULT, CLAIM_TIMEOUT_MS, () => {
             if (this._pending?.entryId === entry.id) {
                 Main.notify(
-                    _('Quake Anything'),
+                    _('Quake Anything Extended'),
                     formatMessage(_('Timed out waiting for %s'), entry.appId),
                 );
                 this._pending = null;
@@ -189,7 +189,7 @@ export class QuakeManager {
         } catch (e) {
             this._clearPending();
             Main.notify(
-                _('Quake Anything'),
+                _('Quake Anything Extended'),
                 formatMessage(_('Failed to launch %s'), entry.appId),
             );
             console.error('[quake-anything] launch failed', e);
