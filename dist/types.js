@@ -1,7 +1,7 @@
 /** Defaults chosen so a migrated entry behaves exactly as it did before. */
 export const ENTRY_DEFAULTS = {
     sizePercent: 40,
-    widthPercent: 100,
+    spanPercent: 100,
     sticky: false,
     opacity: 100,
 };
@@ -45,7 +45,9 @@ export function parseEntries(raw) {
             side,
             shortcut: typeof obj.shortcut === 'string' ? obj.shortcut : '',
             sizePercent: clampInt(obj.sizePercent, 10, 90, ENTRY_DEFAULTS.sizePercent),
-            widthPercent: clampInt(obj.widthPercent, 10, 100, ENTRY_DEFAULTS.widthPercent),
+            // `widthPercent` is the pre-rename key; honour it so entries
+            // written before left/right gained a span still load.
+            spanPercent: clampInt(obj.spanPercent ?? obj.widthPercent, 10, 100, ENTRY_DEFAULTS.spanPercent),
             sticky: obj.sticky === true,
             opacity: clampInt(obj.opacity, 10, 100, ENTRY_DEFAULTS.opacity),
         });
@@ -72,7 +74,7 @@ export function migrateTuples(raw) {
             side,
             shortcut: shortcut ?? '',
             sizePercent: clampInt(sizePercent, 10, 90, ENTRY_DEFAULTS.sizePercent),
-            widthPercent: ENTRY_DEFAULTS.widthPercent,
+            spanPercent: ENTRY_DEFAULTS.spanPercent,
             sticky: ENTRY_DEFAULTS.sticky,
             opacity: ENTRY_DEFAULTS.opacity,
         });

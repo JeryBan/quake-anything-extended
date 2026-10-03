@@ -423,7 +423,7 @@ export class QuakeManager {
             ? getPointerMonitorIndex()
             : win.get_monitor();
         const monitor = sanitizeMonitorIndex(rawMonitor);
-        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.widthPercent, monitor);
+        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.spanPercent, monitor);
         if (!isValidRect(rect)) {
             console.error('[quake-anything] refusing invalid quake rect', rect);
             return;
@@ -504,7 +504,7 @@ export class QuakeManager {
         const rect = computeQuakeRect(
             entry.side,
             entry.sizePercent,
-            entry.widthPercent,
+            entry.spanPercent,
             sanitizeMonitorIndex(win.get_monitor()),
         );
         if (!isValidRect(rect))
@@ -544,7 +544,7 @@ export class QuakeManager {
         const rect = computeQuakeRect(
             entry.side,
             entry.sizePercent,
-            entry.widthPercent,
+            entry.spanPercent,
             sanitizeMonitorIndex(win.get_monitor()),
         );
         if (!isValidRect(rect)) {

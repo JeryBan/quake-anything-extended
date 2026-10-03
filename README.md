@@ -62,7 +62,7 @@ Open **Extension Manager** (or **Extensions**) → Quake Anything Extended →
 | **Side** | Top / bottom / left / right |
 | **Keyboard shortcut** | Toggle show/hide (Esc cancels, Backspace clears; conflicts are warned) |
 | **Default size** | Share of the work area along the dock's axis (10–90%) |
-| **Width** | Share of the work area across it, centred (10–100%). Top/bottom only |
+| **Width** / **Height** | Share of the work area *across* that axis, centred (10–100%). Shown as Width on top/bottom, Height on left/right |
 | **Sticky** | Keep the drawer on every workspace |
 | **Opacity** | 10–100%; 100 is fully opaque |
 
@@ -70,13 +70,15 @@ Press the shortcut to spawn. Press again to hide. Press again to show at the
 configured position and size.
 
 A bottom drawer at 45% size and 50% width is half the screen wide, centred, and
-flush with the bottom edge.
+flush with the bottom edge. A left drawer at 40% size and 50% height is 40% of
+the screen wide, half its height, vertically centred, and flush with the left
+edge.
 
 ## Features
 
 - Dock any installed GUI app to **top**, **bottom**, **left**, or **right**
-- Top/bottom docks take a **centred partial width**; left/right span the full
-  height as before
+- Every dock can take a **centred partial span** across its axis — a width on
+  top/bottom, a height on left/right. 100% gives the full-edge slab
 - Sizes are **percentages of the work area**, so moving between monitors of
   different resolutions keeps the proportions
 - **Sticky** drawers stay available on every workspace

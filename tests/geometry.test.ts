@@ -34,19 +34,33 @@ describe('computeRectInArea: top', () => {
     });
 });
 
-describe('computeRectInArea: left and right ignore widthPercent', () => {
-    test('left is unchanged by widthPercent', () => {
-        const a = computeRectInArea('left', 40, 100, work);
-        const b = computeRectInArea('left', 40, 25, work);
-        expect(a).toEqual(b);
-        expect(a).toEqual({x: 0, y: 37, width: 1024, height: 1403});
+describe('computeRectInArea: left and right', () => {
+    test('centres a partial span vertically', () => {
+        const r = computeRectInArea('left', 40, 50, work);
+        expect(r.width).toBe(1024);
+        expect(r.x).toBe(work.x);
+        expect(r.height).toBe(702);
+        expect(r.y).toBe(388);
     });
 
-    test('right is unchanged by widthPercent and stays flush right', () => {
-        const a = computeRectInArea('right', 40, 100, work);
-        const b = computeRectInArea('right', 40, 25, work);
-        expect(a).toEqual(b);
-        expect(a.x + a.width).toBe(work.x + work.width);
+    test('span 100 reproduces full-height output exactly', () => {
+        const r = computeRectInArea('left', 40, 100, work);
+        expect(r).toEqual({x: 0, y: 37, width: 1024, height: 1403});
+    });
+
+    test('right stays flush with the work area right edge', () => {
+        const r = computeRectInArea('right', 40, 50, work);
+        expect(r.x + r.width).toBe(work.x + work.width);
+        expect(r.height).toBe(702);
+        expect(r.y).toBe(388);
+    });
+
+    test('never extends past the work area vertically', () => {
+        for (const span of [10, 33, 50, 77, 100]) {
+            const r = computeRectInArea('right', 40, span, work);
+            expect(r.y).toBeGreaterThanOrEqual(work.y);
+            expect(r.y + r.height).toBeLessThanOrEqual(work.y + work.height);
+        }
     });
 });
 
@@ -58,10 +72,13 @@ describe('computeRectInArea: clamping', () => {
             .toBe(computeRectInArea('bottom', 10, 100, work).height);
     });
 
-    test('widthPercent clamps to 10-100', () => {
+    test('spanPercent clamps to 10-100 on both axes', () => {
         expect(computeRectInArea('bottom', 45, 999, work).width).toBe(work.width);
         expect(computeRectInArea('bottom', 45, 0, work).width)
             .toBe(computeRectInArea('bottom', 45, 10, work).width);
+        expect(computeRectInArea('left', 45, 999, work).height).toBe(work.height);
+        expect(computeRectInArea('left', 45, 0, work).height)
+            .toBe(computeRectInArea('left', 45, 10, work).height);
     });
 
     test('never extends past the work area horizontally', () => {

@@ -17,9 +17,10 @@ opt-in from Preferences.
 
 ### Added
 
-- **Width** (10–100%) for top/bottom docks. The window takes that share of the
-  work area and is centred horizontally. 100% reproduces the old full-width
-  behaviour byte-for-byte.
+- **Span** (10–100%) across the dock's axis, centred — a width on top/bottom, a
+  height on left/right. 100% reproduces the old full-edge behaviour
+  byte-for-byte on both axes. Stored as `spanPercent`; the earlier
+  `widthPercent` key is still read as a fallback.
 - **Sticky** — keep a drawer on every workspace via `Meta.Window.stick()`,
   instead of dragging it to the active one on each toggle.
 - **Opacity** (10–100%) per entry.

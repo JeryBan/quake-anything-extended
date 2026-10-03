@@ -355,7 +355,7 @@ export class QuakeManager {
             ? getPointerMonitorIndex()
             : win.get_monitor();
         const monitor = sanitizeMonitorIndex(rawMonitor);
-        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.widthPercent, monitor);
+        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.spanPercent, monitor);
         if (!isValidRect(rect)) {
             console.error('[quake-anything] refusing invalid quake rect', rect);
             return;
@@ -422,7 +422,7 @@ export class QuakeManager {
         win.activate(global.get_current_time());
         if (!actor)
             return;
-        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.widthPercent, sanitizeMonitorIndex(win.get_monitor()));
+        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.spanPercent, sanitizeMonitorIndex(win.get_monitor()));
         if (!isValidRect(rect))
             return;
         const offset = slideOffsetForSide(entry.side, rect);
@@ -454,7 +454,7 @@ export class QuakeManager {
             win.minimize();
             return;
         }
-        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.widthPercent, sanitizeMonitorIndex(win.get_monitor()));
+        const rect = computeQuakeRect(entry.side, entry.sizePercent, entry.spanPercent, sanitizeMonitorIndex(win.get_monitor()));
         if (!isValidRect(rect)) {
             Main.wm.skipNextEffect(actor);
             win.minimize();

@@ -60,11 +60,11 @@ export function getWorkAreaForMonitor(monitorIndex: number): Rect {
 export function computeRectInArea(
     side: QuakeSide,
     sizePercent: number,
-    widthPercent: number,
+    spanPercent: number,
     work: Rect,
 ): Rect {
     const sp = Math.min(90, Math.max(10, sizePercent)) / 100;
-    const wp = Math.min(100, Math.max(10, widthPercent)) / 100;
+    const wp = Math.min(100, Math.max(10, spanPercent)) / 100;
 
     switch (side) {
     case 'top':
@@ -78,20 +78,14 @@ export function computeRectInArea(
         return {x, y, width, height};
     }
     case 'left':
-        return {
-            x: work.x,
-            y: work.y,
-            width: Math.round(work.width * sp),
-            height: work.height,
-        };
     case 'right': {
         const width = Math.round(work.width * sp);
-        return {
-            x: work.x + work.width - width,
-            y: work.y,
-            width,
-            height: work.height,
-        };
+        const height = Math.round(work.height * wp);
+        const y = work.y + Math.round((work.height - height) / 2);
+        const x = side === 'left'
+            ? work.x
+            : work.x + work.width - width;
+        return {x, y, width, height};
     }
     }
 }
@@ -99,13 +93,13 @@ export function computeRectInArea(
 export function computeQuakeRect(
     side: QuakeSide,
     sizePercent: number,
-    widthPercent: number,
+    spanPercent: number,
     monitorIndex: number,
 ): Rect {
     return computeRectInArea(
         side,
         sizePercent,
-        widthPercent,
+        spanPercent,
         getWorkAreaForMonitor(monitorIndex),
     );
 }

@@ -99,9 +99,7 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
             ? entry.shortcut.replace(/</g, '').replace(/>/g, '+')
             : _('Disabled');
         const parts = [sideInfo?.title ?? entry.side];
-        parts.push(entry.side === 'top' || entry.side === 'bottom'
-            ? `${entry.sizePercent}% × ${entry.widthPercent}%`
-            : `${entry.sizePercent}%`);
+        parts.push(`${entry.sizePercent}% × ${entry.spanPercent}%`);
         if (entry.sticky)
             parts.push(_('sticky'));
         if (entry.opacity < 100)
@@ -163,7 +161,7 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
         let side = existing?.side ?? 'top';
         let shortcut = existing?.shortcut ?? '';
         let sizePercent = existing?.sizePercent ?? 40;
-        let widthPercent = existing?.widthPercent ?? ENTRY_DEFAULTS.widthPercent;
+        let spanPercent = existing?.spanPercent ?? ENTRY_DEFAULTS.spanPercent;
         let sticky = existing?.sticky ?? ENTRY_DEFAULTS.sticky;
         let opacity = existing?.opacity ?? ENTRY_DEFAULTS.opacity;
         const appRow = new Adw.ActionRow({
@@ -200,7 +198,7 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
             if (idx >= 0 && idx < labels.length) {
                 side = labels[idx].id;
                 sideRow.subtitle = labels[idx].subtitle;
-                syncWidthVisible();
+                syncSpanLabel();
             }
         });
         group.add(sideRow);
@@ -249,7 +247,7 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
             sizePercent = Math.round(sizeRow.value);
         });
         group.add(sizeRow);
-        const widthRow = new Adw.SpinRow({
+        const spanRow = new Adw.SpinRow({
             title: _('Width'),
             subtitle: _('Percentage of the work area width, centred'),
             adjustment: new Gtk.Adjustment({
@@ -257,18 +255,23 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
                 upper: 100,
                 step_increment: 1,
                 page_increment: 5,
-                value: widthPercent,
+                value: spanPercent,
             }),
         });
-        widthRow.connect('notify::value', () => {
-            widthPercent = Math.round(widthRow.value);
+        spanRow.connect('notify::value', () => {
+            spanPercent = Math.round(spanRow.value);
         });
-        group.add(widthRow);
-        // Width only means anything for a horizontal edge.
-        const syncWidthVisible = () => {
-            widthRow.visible = side === 'top' || side === 'bottom';
+        group.add(spanRow);
+        // The span runs across the dock's axis, so it is a width on a
+        // horizontal edge and a height on a vertical one.
+        const syncSpanLabel = () => {
+            const horizontal = side === 'top' || side === 'bottom';
+            spanRow.title = horizontal ? _('Width') : _('Height');
+            spanRow.subtitle = horizontal
+                ? _('Percentage of the work area width, centred')
+                : _('Percentage of the work area height, centred');
         };
-        syncWidthVisible();
+        syncSpanLabel();
         const stickyRow = new Adw.SwitchRow({
             title: _('Sticky'),
             subtitle: _('Show on every workspace'),
@@ -316,7 +319,7 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
                 side,
                 shortcut,
                 sizePercent: Math.min(90, Math.max(10, sizePercent)),
-                widthPercent: Math.min(100, Math.max(10, widthPercent)),
+                spanPercent: Math.min(100, Math.max(10, spanPercent)),
                 sticky,
                 opacity: Math.min(100, Math.max(10, opacity)),
             };

@@ -14,7 +14,7 @@ const full: QuakeEntry = {
     side: 'bottom',
     shortcut: '<Control><Alt>n',
     sizePercent: 45,
-    widthPercent: 50,
+    spanPercent: 50,
     sticky: true,
     opacity: 95,
 };
@@ -38,8 +38,8 @@ describe('parseEntries', () => {
             sizePercent: 40,
         })];
         const [entry] = parseEntries(raw);
-        expect(entry.widthPercent).toBe(ENTRY_DEFAULTS.widthPercent);
-        expect(entry.widthPercent).toBe(100);
+        expect(entry.spanPercent).toBe(ENTRY_DEFAULTS.spanPercent);
+        expect(entry.spanPercent).toBe(100);
         expect(entry.sticky).toBe(false);
         expect(entry.opacity).toBe(100);
     });
@@ -55,11 +55,11 @@ describe('parseEntries', () => {
 
     test('clamps each percentage to its own range', () => {
         const raw = [JSON.stringify({
-            ...full, sizePercent: 999, widthPercent: 999, opacity: 999,
+            ...full, sizePercent: 999, spanPercent: 999, opacity: 999,
         })];
         const [entry] = parseEntries(raw);
         expect(entry.sizePercent).toBe(90);
-        expect(entry.widthPercent).toBe(100);
+        expect(entry.spanPercent).toBe(100);
         expect(entry.opacity).toBe(100);
     });
 
@@ -79,7 +79,7 @@ describe('migrateTuples', () => {
             side: 'bottom',
             shortcut: '<Control><Alt>n',
             sizePercent: 45,
-            widthPercent: 100,
+            spanPercent: 100,
             sticky: false,
             opacity: 100,
         });
@@ -97,12 +97,12 @@ describe('clampInt via parseEntries: non-numeric JSON values', () => {
             appId: 'a.desktop',
             side: 'bottom',
             opacity: null,
-            widthPercent: false,
+            spanPercent: false,
             sizePercent: [],
         })];
         const [entry] = parseEntries(raw);
         expect(entry.opacity).toBe(ENTRY_DEFAULTS.opacity);
-        expect(entry.widthPercent).toBe(ENTRY_DEFAULTS.widthPercent);
+        expect(entry.spanPercent).toBe(ENTRY_DEFAULTS.spanPercent);
         expect(entry.sizePercent).toBe(ENTRY_DEFAULTS.sizePercent);
     });
 
@@ -111,6 +111,23 @@ describe('clampInt via parseEntries: non-numeric JSON values', () => {
             id: 'x', appId: 'a.desktop', side: 'bottom', sizePercent: '55',
         })];
         expect(parseEntries(raw)[0].sizePercent).toBe(55);
+    });
+});
+
+describe('parseEntries: legacy widthPercent key', () => {
+    test('an entry written before the rename still parses', () => {
+        const raw = [JSON.stringify({
+            id: 'old', appId: 'a.desktop', side: 'bottom', widthPercent: 45,
+        })];
+        expect(parseEntries(raw)[0].spanPercent).toBe(45);
+    });
+
+    test('spanPercent wins when both are present', () => {
+        const raw = [JSON.stringify({
+            id: 'both', appId: 'a.desktop', side: 'bottom',
+            spanPercent: 70, widthPercent: 20,
+        })];
+        expect(parseEntries(raw)[0].spanPercent).toBe(70);
     });
 });
 

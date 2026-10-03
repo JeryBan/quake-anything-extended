@@ -7,8 +7,11 @@
       <summary>Quake application entries</summary>
       <description>
         Configured Quake-mode applications, one JSON object per entry with
-        keys: id, appId, side, shortcut, sizePercent, widthPercent, sticky,
-        opacity. Unknown keys are ignored and absent keys take their default.
+        keys: id, appId, side, shortcut, sizePercent, spanPercent, sticky,
+        opacity. spanPercent runs across the dock's axis - a width on top or
+        bottom, a height on left or right - and the older widthPercent key is
+        still read as a fallback. Unknown keys are ignored and absent keys take
+        their default.
       </description>
     </key>
 

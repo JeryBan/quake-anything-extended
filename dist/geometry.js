@@ -46,9 +46,9 @@ export function getWorkAreaForMonitor(monitorIndex) {
 }
 
 /** Pure placement maths. `work` is the target work area in absolute coords. */
-export function computeRectInArea(side, sizePercent, widthPercent, work) {
+export function computeRectInArea(side, sizePercent, spanPercent, work) {
     const sp = Math.min(90, Math.max(10, sizePercent)) / 100;
-    const wp = Math.min(100, Math.max(10, widthPercent)) / 100;
+    const wp = Math.min(100, Math.max(10, spanPercent)) / 100;
     switch (side) {
         case 'top':
         case 'bottom': {
@@ -61,26 +61,20 @@ export function computeRectInArea(side, sizePercent, widthPercent, work) {
             return { x, y, width, height };
         }
         case 'left':
-            return {
-                x: work.x,
-                y: work.y,
-                width: Math.round(work.width * sp),
-                height: work.height,
-            };
         case 'right': {
             const width = Math.round(work.width * sp);
-            return {
-                x: work.x + work.width - width,
-                y: work.y,
-                width,
-                height: work.height,
-            };
+            const height = Math.round(work.height * wp);
+            const y = work.y + Math.round((work.height - height) / 2);
+            const x = side === 'left'
+                ? work.x
+                : work.x + work.width - width;
+            return { x, y, width, height };
         }
     }
 }
 
-export function computeQuakeRect(side, sizePercent, widthPercent, monitorIndex) {
-    return computeRectInArea(side, sizePercent, widthPercent, getWorkAreaForMonitor(monitorIndex));
+export function computeQuakeRect(side, sizePercent, spanPercent, monitorIndex) {
+    return computeRectInArea(side, sizePercent, spanPercent, getWorkAreaForMonitor(monitorIndex));
 }
 
 export function slideOffsetForSide(side, rect) {
