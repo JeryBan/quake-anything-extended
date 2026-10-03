@@ -512,8 +512,15 @@ export class QuakeManager {
             return;
         }
 
-        if (win.minimized)
+        const actor = win.get_compositor_private() as Clutter.Actor | null;
+
+        if (win.minimized) {
+            // Suppress the stock unminimise effect, which flies in from the
+            // dash icon rather than from this drawer's own edge.
+            if (actor)
+                Main.wm.skipNextEffect(actor);
             win.unminimize();
+        }
 
         this._applyQuakeGeometry(entryId, win, entry, false);
 
@@ -522,17 +529,17 @@ export class QuakeManager {
             return;
         }
 
+        this._applyWindowTraits(win, entry);
         win.activate(global.get_current_time());
 
-        const actor = win.get_compositor_private() as Clutter.Actor | null;
         if (!actor)
             return;
 
-        const showGeom = this._effectiveGeom(entryId, entry);
+        const geom = this._effectiveGeom(entryId, entry);
         const rect = computeQuakeRect(
             entry.side,
-            showGeom.sizePercent,
-            showGeom.widthPercent,
+            geom.sizePercent,
+            geom.widthPercent,
             sanitizeMonitorIndex(win.get_monitor()),
         );
         if (!isValidRect(rect))
@@ -564,13 +571,45 @@ export class QuakeManager {
         this._rememberQuakePercent(entryId, win, entry);
 
         const actor = win.get_compositor_private() as Clutter.Actor | null;
-        if (actor) {
-            actor.remove_all_transitions();
-            actor.set_translation(0, 0, 0);
+        if (!actor) {
+            win.minimize();
+            return;
         }
-        this._animating.delete(entryId);
 
-        win.minimize();
+        const geom = this._effectiveGeom(entryId, entry);
+        const rect = computeQuakeRect(
+            entry.side,
+            geom.sizePercent,
+            geom.widthPercent,
+            sanitizeMonitorIndex(win.get_monitor()),
+        );
+        if (!isValidRect(rect)) {
+            Main.wm.skipNextEffect(actor);
+            win.minimize();
+            return;
+        }
+
+        const offset = slideOffsetForSide(entry.side, rect);
+        actor.remove_all_transitions();
+        actor.set_translation(0, 0, 0);
+        this._animating.add(entryId);
+        actor.ease({
+            translationX: offset.x,
+            translationY: offset.y,
+            duration: ANIM_MS,
+            mode: Clutter.AnimationMode.EASE_IN_CUBIC,
+            onStopped: () => {
+                this._animating.delete(entryId);
+                if (!this._isWindowAlive(win))
+                    return;
+                // Minimise only once the drawer is offscreen, with the stock
+                // effect suppressed so nothing flies to the corner.
+                Main.wm.skipNextEffect(actor);
+                win.minimize();
+                // A window left translated while minimised restores offset.
+                actor.set_translation(0, 0, 0);
+            },
+        });
     }
 
     private _resolveApp(appId: string): Shell.App | null {
