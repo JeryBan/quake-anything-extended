@@ -132,9 +132,19 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
             ? entry.shortcut.replace(/</g, '').replace(/>/g, '+')
             : _('Disabled');
 
+        const parts = [sideInfo?.title ?? entry.side];
+        parts.push(entry.side === 'top' || entry.side === 'bottom'
+            ? `${entry.sizePercent}% × ${entry.widthPercent}%`
+            : `${entry.sizePercent}%`);
+        if (entry.sticky)
+            parts.push(_('sticky'));
+        if (entry.opacity < 100)
+            parts.push(`${entry.opacity}%`);
+        parts.push(shortcut);
+
         const row = new Adw.ActionRow({
             title,
-            subtitle: `${sideInfo?.title ?? entry.side} · ${entry.sizePercent}% · ${shortcut}`,
+            subtitle: parts.join(' · '),
             activatable: true,
         });
 
@@ -200,6 +210,9 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
         let side: QuakeSide = existing?.side ?? 'top';
         let shortcut = existing?.shortcut ?? '';
         let sizePercent = existing?.sizePercent ?? 40;
+        let widthPercent = existing?.widthPercent ?? ENTRY_DEFAULTS.widthPercent;
+        let sticky = existing?.sticky ?? ENTRY_DEFAULTS.sticky;
+        let opacity = existing?.opacity ?? ENTRY_DEFAULTS.opacity;
 
         const appRow = new Adw.ActionRow({
             title: _('Application'),
@@ -237,6 +250,7 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
             if (idx >= 0 && idx < labels.length) {
                 side = labels[idx].id;
                 sideRow.subtitle = labels[idx].subtitle;
+                syncWidthVisible();
             }
         });
         group.add(sideRow);
@@ -295,6 +309,54 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
         });
         group.add(sizeRow);
 
+        const widthRow = new Adw.SpinRow({
+            title: _('Width'),
+            subtitle: _('Percentage of the work area width, centred'),
+            adjustment: new Gtk.Adjustment({
+                lower: 10,
+                upper: 100,
+                step_increment: 1,
+                page_increment: 5,
+                value: widthPercent,
+            }),
+        });
+        widthRow.connect('notify::value', () => {
+            widthPercent = Math.round(widthRow.value);
+        });
+        group.add(widthRow);
+
+        // Width only means anything for a horizontal edge.
+        const syncWidthVisible = () => {
+            widthRow.visible = side === 'top' || side === 'bottom';
+        };
+        syncWidthVisible();
+
+        const stickyRow = new Adw.SwitchRow({
+            title: _('Sticky'),
+            subtitle: _('Show on every workspace'),
+            active: sticky,
+        });
+        stickyRow.connect('notify::active', () => {
+            sticky = stickyRow.active;
+        });
+        group.add(stickyRow);
+
+        const opacityRow = new Adw.SpinRow({
+            title: _('Opacity'),
+            subtitle: _('100% is fully opaque'),
+            adjustment: new Gtk.Adjustment({
+                lower: 10,
+                upper: 100,
+                step_increment: 1,
+                page_increment: 5,
+                value: opacity,
+            }),
+        });
+        opacityRow.connect('notify::value', () => {
+            opacity = Math.round(opacityRow.value);
+        });
+        group.add(opacityRow);
+
         toolbar.set_content(page);
         dialog.set_child(toolbar);
 
@@ -321,9 +383,9 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
                 side,
                 shortcut,
                 sizePercent: Math.min(90, Math.max(10, sizePercent)),
-                widthPercent: ENTRY_DEFAULTS.widthPercent,
-                sticky: ENTRY_DEFAULTS.sticky,
-                opacity: ENTRY_DEFAULTS.opacity,
+                widthPercent: Math.min(100, Math.max(10, widthPercent)),
+                sticky,
+                opacity: Math.min(100, Math.max(10, opacity)),
             };
 
             const idx = entries.findIndex(e => e.id === next.id);
