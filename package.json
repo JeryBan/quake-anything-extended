@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.json && eslint \"dist/**/*.js\" --fix",
     "watch": "tsc -p tsconfig.json --watch",
     "schemas": "glib-compile-schemas schemas/",
+    "test": "bun test",
     "stage": "bash scripts/stage.sh",
     "lint": "bun run build && eslint \"dist/**/*.js\"",
     "pack": "bun run stage && (cd build && gnome-extensions pack --force --extra-source=LICENSE --extra-source=types.js --extra-source=geometry.js --extra-source=keybindings.js --extra-source=quake-manager.js --extra-source=prefs .) && mv -f build/quake-anything@yccoskun.github.io.shell-extension.zip .",

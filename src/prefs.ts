@@ -1,7 +1,6 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
-import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 import {
     ExtensionPreferences,
@@ -11,12 +10,12 @@ import {
 import {ShortcutDialog} from './prefs/shortcut-dialog.js';
 import {
     createEntryId,
-    entriesToTuples,
+    ENTRY_DEFAULTS,
+    entriesToJson,
     formatMessage,
     isQuakeSide,
     parseEntries,
     type QuakeEntry,
-    type QuakeEntryTuple,
     type QuakeSide,
 } from './types.js';
 
@@ -322,6 +321,9 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
                 side,
                 shortcut,
                 sizePercent: Math.min(90, Math.max(10, sizePercent)),
+                widthPercent: ENTRY_DEFAULTS.widthPercent,
+                sticky: ENTRY_DEFAULTS.sticky,
+                opacity: ENTRY_DEFAULTS.opacity,
             };
 
             const idx = entries.findIndex(e => e.id === next.id);
@@ -460,12 +462,10 @@ export default class QuakeAnythingPreferences extends ExtensionPreferences {
     }
 
     private _loadEntries(settings: Gio.Settings): QuakeEntry[] {
-        const raw = settings.get_value('entries').deep_unpack() as QuakeEntryTuple[];
-        return parseEntries(raw);
+        return parseEntries(settings.get_strv('app-entries'));
     }
 
     private _saveEntries(settings: Gio.Settings, entries: QuakeEntry[]): void {
-        const tuples = entriesToTuples(entries);
-        settings.set_value('entries', new GLib.Variant('a(ssssi)', tuples));
+        settings.set_strv('app-entries', entriesToJson(entries));
     }
 }
