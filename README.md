@@ -111,14 +111,120 @@ flush with the bottom edge.
   drawer is not in Alt-Tab, its keyboard shortcut is the only way to reach it.
 - `src/clone-opacity.ts` patches a GNOME Shell prototype
   (`WorkspaceGroup._createClone`) so workspace-switch clones inherit window
-  opacity. It restores the original on disable. Along with
-  `overview-visibility.ts`, these two depend on GNOME Shell internals and are
-  the first things to check after a shell upgrade; both fail soft (the
-  behaviour stops, nothing breaks).
+  opacity. It restores the original on disable.
+- Both of those reach into shell internals, as do a handful of calls elsewhere.
+  See [Surviving a GNOME upgrade](#surviving-a-gnome-upgrade) for what breaks
+  first and how to tell which one went.
 - Client-side window buttons stay visible for many apps; GNOME does not let
   extensions remove them reliably.
 - Some single-instance apps may not open a second window when one is already
   running.
+
+## Surviving a GNOME upgrade
+
+This extension reaches into GNOME Shell internals in a few places. None of them
+are public API, so a major shell release can change them without warning. The
+list below is ordered by how likely each is to break, and each failure mode is
+written so you can tell from the symptom which one went.
+
+Nothing here can break your desktop — the worst case is a behaviour quietly
+stopping, or the extension failing to load and being listed as errored.
+
+### 1. Overview and Alt-Tab hiding — `src/overview-visibility.ts`
+
+Depends on GNOME Shell reading `window.skip_taskbar` **from JavaScript** in two
+places:
+
+```
+ui/workspace.js   _isOverviewWindow(w) { return !w.skip_taskbar; }
+ui/altTab.js      .filter(w => !w.skip_taskbar && ...)
+```
+
+We shadow that property on our own window. If either moves to the C method
+`is_skip_taskbar()`, or the filter is restructured, the shadow stops being
+consulted.
+
+**Symptom:** the drawer reappears in the overview and Alt-Tab.
+**Check:** extract `workspace.js` (see *Reading the shell's source* below) and
+confirm `_isOverviewWindow` still reads the JS property.
+
+### 2. Workspace-switch opacity — `src/clone-opacity.ts`
+
+Patches `WorkspaceAnimation.WorkspaceGroup.prototype._createClone`. Breaks if
+the class is renamed, the method disappears, or the animation stops using
+`Clutter.Clone`.
+
+**Symptom:** opacity flashes to 100% during a workspace switch (the original
+bug), or the extension throws on enable if the prototype is missing.
+**Check:** `grep -n "_createClone" workspaceAnimation.js`.
+
+### 3. Window effect suppression — `Main.wm.skipNextEffect()`
+
+Used at `quake-manager.ts:481,551,576` to stop the shell's stock
+minimise/unminimise animations flying the window at a dash icon. It is a single
+token consumed by whichever effect checks `_shouldAnimateActor` first, which is
+why `_show` also flushes transitions before applying traits — see the opacity
+bug in [CHANGELOG.md](CHANGELOG.md).
+
+**Symptom:** the drawer flies toward a corner instead of sliding through its
+edge, or opacity resets to 100% after a toggle.
+**Check:** `grep -n "skipNextEffect\|_shouldAnimateActor" windowManager.js`, and
+that `_unminimizeWindowDone` still ends with `set_opacity(255)`.
+
+### 4. Typelib version bump
+
+`metadata.json` claims `shell-version` 46–50, and the build resolves against
+`@girs/meta-18` / `@girs/clutter-18` / `@girs/shell-18`. GNOME 51 will ship
+Meta-19 and friends.
+
+**Symptom:** the extension is listed as "unsupported" and never loads.
+**Fix:** add the new version to `shell-version`, bump `@girs/gnome-shell`, run
+`bun install && bun run build`, and read the new typings for anything that
+changed shape.
+
+### 5. Shell-monkeypatched JavaScript
+
+`actor.ease()` (`quake-manager.ts:517,560`) and `connectObject()` /
+`disconnectObject()` are added to Clutter and GObject by the shell's
+`ui/environment.js`, not by Clutter or GObject themselves. They are stable in
+practice but are not real platform API.
+
+**Symptom:** `TypeError: actor.ease is not a function` in the journal on enable.
+
+### 6. Narrower version-sensitive calls
+
+| Call | Site | Note |
+|---|---|---|
+| `win.unmaximize()` with no arguments | `quake-manager.ts:48` | Shell 49+ signature; older shells took flags |
+| `win.unmake_fullscreen()` | `quake-manager.ts:46` | Needed because `unmaximize()` alone never clears fullscreen |
+| `global.display.grab_accelerator()` | `keybindings.ts:67` | Dynamic shortcut grabs, not schema-backed keybindings |
+| `Meta.external_binding_name_for_action()` | `keybindings.ts:75` | Pairs with the grab above |
+| `GioUnix.DesktopAppInfo` | `prefs.ts:3` | Split out of `Gio` in GNOME 45; older code used `Gio.DesktopAppInfo` |
+| `Adw.SwitchRow`, `Adw.SpinRow`, `Adw.Dialog` | `prefs.ts` | libadwaita 1.4/1.5+; the prefs window fails to open if missing |
+
+### First thing to run after an upgrade
+
+```bash
+journalctl --user -b -o cat /usr/bin/gnome-shell | grep -i quake
+```
+
+A stack trace there names the broken call directly. If the extension loads but
+misbehaves, the `notify::<property>` + `new Error().stack` trick under
+*Debugging* is how both opacity bugs in this fork were found.
+
+### Reading the shell's source
+
+The shell's JavaScript is not on disk as files — it is compiled into a
+gresource bundle inside the shared library:
+
+```bash
+SO=/usr/lib/gnome-shell/libshell-18.so    # name tracks the GNOME version
+gresource list $SO | grep "\.js$"
+gresource extract $SO /org/gnome/shell/ui/workspace.js > workspace.js
+```
+
+That is how every claim in this section was verified; redo it against the new
+version rather than trusting the line numbers above, which will drift.
 
 ## Development
 
