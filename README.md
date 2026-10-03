@@ -29,7 +29,7 @@ extension's settings.
 the path for a machine where you don't want Bun or TypeScript:
 
 ```bash
-git clone <this-repo> quake-anything-extended
+git clone https://github.com/JeryBan/quake-anything-extended
 cd quake-anything-extended
 UUID=quake-anything-extended@jeryban.gr
 mkdir -p ~/.local/share/gnome-shell/extensions/$UUID

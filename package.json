@@ -2,6 +2,10 @@
   "name": "quake-anything",
   "version": "1.0.1",
   "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JeryBan/quake-anything-extended.git"
+  },
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json && eslint \"dist/**/*.js\" --fix && bun run schemas && bun run sync-dist",
