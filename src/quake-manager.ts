@@ -18,8 +18,13 @@ import {formatMessage, type QuakeEntry} from './types.js';
 
 // Persistent module-level state to remember windows and their geometries
 // across disable/enable cycles (such as when the system is suspended).
+interface LiveGeom {
+    sizePercent: number;
+    widthPercent: number;
+}
+
 const PERSISTENT_WINDOWS = new Map<number, string>();
-const PERSISTENT_PERCENT = new Map<string, number>();
+const PERSISTENT_GEOM = new Map<string, LiveGeom>();
 const PERSISTENT_MONITOR = new Map<string, number>();
 
 const ANIM_MS = 180;
@@ -46,7 +51,7 @@ function unmaximizeWindow(win: Meta.Window): void {
 export class QuakeManager {
     private _entries = new Map<string, QuakeEntry>();
     private _windows = new Map<string, Meta.Window>();
-    private _livePercent = new Map<string, number>();
+    private _liveGeom = new Map<string, LiveGeom>();
     private _lastMonitor = new Map<string, number>();
     private _pending: PendingClaim | null = null;
     private _animating = new Set<string>();
@@ -97,7 +102,7 @@ export class QuakeManager {
         for (const id of [...this._windows.keys()])
             this._detachWindow(id, false);
         this._entries.clear();
-        this._livePercent.clear();
+        this._liveGeom.clear();
         this._lastMonitor.clear();
         this._applyingGeometry.clear();
         this._animating.clear();
@@ -109,7 +114,7 @@ export class QuakeManager {
         for (const id of [...this._entries.keys()]) {
             if (!nextIds.has(id)) {
                 this._detachWindow(id, false);
-                this._livePercent.delete(id);
+                this._liveGeom.delete(id);
                 this._lastMonitor.delete(id);
             }
         }
@@ -245,24 +250,25 @@ export class QuakeManager {
 
         this._windows.set(entryId, win);
         PERSISTENT_WINDOWS.set(win.get_id(), entryId);
+        this._applyWindowTraits(win, entry);
 
         if (!isRestore) {
-            this._livePercent.delete(entryId);
+            this._liveGeom.delete(entryId);
             this._lastMonitor.delete(entryId);
         }
 
         win.connectObject('unmanaged', () => {
             PERSISTENT_WINDOWS.delete(win.get_id());
-            PERSISTENT_PERCENT.delete(entryId);
+            PERSISTENT_GEOM.delete(entryId);
             PERSISTENT_MONITOR.delete(entryId);
             if (this._windows.get(entryId) === win)
                 this._detachWindow(entryId, true);
         }, this);
 
         if (isRestore) {
-            const percent = PERSISTENT_PERCENT.get(entryId);
-            if (percent !== undefined)
-                this._livePercent.set(entryId, percent);
+            const geom = PERSISTENT_GEOM.get(entryId);
+            if (geom !== undefined)
+                this._liveGeom.set(entryId, geom);
             const mon = PERSISTENT_MONITOR.get(entryId);
             if (mon !== undefined)
                 this._lastMonitor.set(entryId, mon);
@@ -324,13 +330,15 @@ export class QuakeManager {
             if (actor) {
                 actor.remove_all_transitions();
                 actor.set_translation(0, 0, 0);
+                actor.opacity = 255;
             }
+            win.unstick();
         }
 
         this._windows.delete(entryId);
         this._applyingGeometry.delete(entryId);
         if (resetSessionState) {
-            this._livePercent.delete(entryId);
+            this._liveGeom.delete(entryId);
             this._lastMonitor.delete(entryId);
         }
     }
@@ -387,8 +395,29 @@ export class QuakeManager {
         });
     }
 
-    private _effectivePercent(entryId: string, entry: QuakeEntry): number {
-        return this._livePercent.get(entryId) ?? entry.sizePercent;
+    private _effectiveGeom(entryId: string, entry: QuakeEntry): LiveGeom {
+        const live = this._liveGeom.get(entryId);
+        return {
+            sizePercent: live?.sizePercent ?? entry.sizePercent,
+            widthPercent: live?.widthPercent ?? entry.widthPercent,
+        };
+    }
+
+    /** Apply the per-entry traits that are independent of geometry. */
+    private _applyWindowTraits(win: Meta.Window, entry: QuakeEntry): void {
+        if (!this._isWindowAlive(win))
+            return;
+
+        if (entry.sticky)
+            win.stick();
+        else
+            win.unstick();
+
+        const actor = win.get_compositor_private() as Clutter.Actor | null;
+        if (actor) {
+            const pct = Math.min(100, Math.max(10, entry.opacity));
+            actor.opacity = Math.round(255 * pct / 100);
+        }
     }
 
     private _rememberQuakePercent(entryId: string, win: Meta.Window, entry: QuakeEntry): void {
@@ -397,14 +426,22 @@ export class QuakeManager {
 
         const frame = win.get_frame_rect();
         const monitor = sanitizeMonitorIndex(win.get_monitor());
-        const percent = percentFromRect(
+        const percents = percentFromRect(
             entry.side,
             { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
             monitor,
         );
-        this._livePercent.set(entryId, percent);
+
+        const previous = this._effectiveGeom(entryId, entry);
+        const next: LiveGeom = {
+            sizePercent: percents.sizePercent,
+            // Absent for left/right - keep whatever width was stored.
+            widthPercent: percents.widthPercent ?? previous.widthPercent,
+        };
+
+        this._liveGeom.set(entryId, next);
         this._lastMonitor.set(entryId, monitor);
-        PERSISTENT_PERCENT.set(entryId, percent);
+        PERSISTENT_GEOM.set(entryId, next);
         PERSISTENT_MONITOR.set(entryId, monitor);
     }
 
@@ -417,12 +454,12 @@ export class QuakeManager {
         if (!this._isWindowAlive(win))
             return;
 
-        const percent = this._effectivePercent(entryId, entry);
+        const geom = this._effectiveGeom(entryId, entry);
         const rawMonitor = usePointerMonitor
             ? getPointerMonitorIndex()
             : win.get_monitor();
         const monitor = sanitizeMonitorIndex(rawMonitor);
-        const rect = computeQuakeRect(entry.side, percent, monitor);
+        const rect = computeQuakeRect(entry.side, geom.sizePercent, geom.widthPercent, monitor);
         if (!isValidRect(rect)) {
             console.error('[quake-anything] refusing invalid quake rect', rect);
             return;
@@ -435,16 +472,20 @@ export class QuakeManager {
             if (sanitizeMonitorIndex(win.get_monitor()) !== monitor)
                 win.move_to_monitor(monitor);
 
-            const workspace = global.workspace_manager.get_active_workspace();
-            if (!win.located_on_workspace(workspace))
-                win.change_workspace(workspace);
+            // A sticky window is already on every workspace; pulling it would
+            // fight the stick. Only non-sticky drawers follow the user.
+            if (!entry.sticky) {
+                const workspace = global.workspace_manager.get_active_workspace();
+                if (!win.located_on_workspace(workspace))
+                    win.change_workspace(workspace);
+            }
 
             win.move_resize_frame(false, rect.x, rect.y, rect.width, rect.height);
             this._lastMonitor.set(entryId, monitor);
             PERSISTENT_MONITOR.set(entryId, monitor);
-            if (!this._livePercent.has(entryId)) {
-                this._livePercent.set(entryId, percent);
-                PERSISTENT_PERCENT.set(entryId, percent);
+            if (!this._liveGeom.has(entryId)) {
+                this._liveGeom.set(entryId, geom);
+                PERSISTENT_GEOM.set(entryId, geom);
             }
         } finally {
             this._idleAdd(GLib.PRIORITY_DEFAULT_IDLE, () => {
@@ -487,9 +528,11 @@ export class QuakeManager {
         if (!actor)
             return;
 
+        const showGeom = this._effectiveGeom(entryId, entry);
         const rect = computeQuakeRect(
             entry.side,
-            this._effectivePercent(entryId, entry),
+            showGeom.sizePercent,
+            showGeom.widthPercent,
             sanitizeMonitorIndex(win.get_monitor()),
         );
         if (!isValidRect(rect))
