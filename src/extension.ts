@@ -2,6 +2,7 @@ import type Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {disableCloneOpacityFix, enableCloneOpacityFix} from './clone-opacity.js';
 import {KeybindingManager} from './keybindings.js';
 import {QuakeManager} from './quake-manager.js';
 import {ensureMigrated, formatMessage, parseEntries, type QuakeEntry} from './types.js';
@@ -20,6 +21,7 @@ export default class QuakeAnythingExtension extends Extension {
         this._quake = new QuakeManager();
         this._keys = new KeybindingManager();
 
+        enableCloneOpacityFix();
         this._quake.enable();
         this._keys.enable();
 
@@ -33,6 +35,7 @@ export default class QuakeAnythingExtension extends Extension {
         this._keys?.disable();
         this._keys = null;
 
+        disableCloneOpacityFix();
         this._quake?.disable();
         this._quake = null;
 

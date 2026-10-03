@@ -390,10 +390,12 @@ export class QuakeManager {
         if (!this._isWindowAlive(win))
             return;
 
-        if (entry.sticky)
-            win.stick();
-        else
-            win.unstick();
+        if (!win.is_override_redirect()) {
+            if (entry.sticky)
+                win.stick();
+            else
+                win.unstick();
+        }
 
         const actor = win.get_compositor_private() as Clutter.Actor | null;
         if (actor) {
@@ -474,6 +476,12 @@ export class QuakeManager {
             win.unminimize();
         }
 
+        // If the stock unminimise animation ran anyway (skipNextEffect is a
+        // single token and another effect can consume it first), end it NOW.
+        // Cancelling fires _unminimizeWindowDone, which forces opacity to 255 -
+        // so it has to happen before _applyWindowTraits, not after.
+        actor?.remove_all_transitions();
+
         this._applyQuakeGeometry(entryId, win, entry, false);
 
         if (!this._isWindowAlive(win)) {
@@ -507,6 +515,8 @@ export class QuakeManager {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             onStopped: () => {
                 this._animating.delete(entryId);
+                // A shell effect completing after us would have reset opacity.
+                this._applyWindowTraits(win, entry);
             },
         });
     }
