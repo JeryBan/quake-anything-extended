@@ -24,6 +24,9 @@ const PERSISTENT_MONITOR = new Map<string, number>();
 const ANIM_MS = 180;
 const CLAIM_TIMEOUT_MS = 8000;
 const FIRST_FRAME_FALLBACK_MS = 750;
+// Guake stays above drawers: it is itself keep-above, and a drawer taking
+// focus would otherwise restack over it within the same layer.
+const ABOVE_DRAWERS_WM_CLASSES = new Set(['guake']);
 
 interface PendingClaim {
     entryId: string;
@@ -57,6 +60,9 @@ export class QuakeManager {
     private _applyingGeometry = new Set<string>();
     private _sourceIds = new Set<number>();
     private _firstFrameWatches = new Map<string, FirstFrameWatch>();
+    // Windows we made keep-above, so detaching does not demote one that
+    // already was.
+    private _madeAbove = new Set<Meta.Window>();
 
     enable(): void {
         global.display.connectObject(
@@ -65,6 +71,8 @@ export class QuakeManager {
             'window-entered-monitor',
             (_d: Meta.Display, monitorIndex: number, win: Meta.Window) =>
                 this._onEnteredMonitor(monitorIndex, win),
+            'notify::focus-window',
+            () => this._onFocusChanged(),
             this,
         );
 
@@ -328,9 +336,13 @@ export class QuakeManager {
                 actor.opacity = 255;
             }
             win.unstick();
+            if (this._madeAbove.has(win))
+                win.unmake_above();
         }
-        if (win)
+        if (win) {
+            this._madeAbove.delete(win);
             restoreOverviewVisibility(win);
+        }
 
         this._windows.delete(entryId);
         this._applyingGeometry.delete(entryId);
@@ -401,12 +413,30 @@ export class QuakeManager {
                 win.stick();
             else
                 win.unstick();
+
+            if (!win.is_above()) {
+                win.make_above();
+                this._madeAbove.add(win);
+            }
         }
 
         const actor = win.get_compositor_private() as Clutter.Actor | null;
         if (actor) {
             const pct = Math.min(100, Math.max(10, entry.opacity));
             actor.opacity = Math.round(255 * pct / 100);
+        }
+    }
+
+    private _onFocusChanged(): void {
+        const focused = global.display.focus_window;
+        if (!focused || !this._entryIdForWindow(focused))
+            return;
+
+        for (const actor of global.get_window_actors()) {
+            const win = actor.meta_window;
+            const wmClass = win?.get_wm_class()?.toLowerCase();
+            if (win && wmClass && ABOVE_DRAWERS_WM_CLASSES.has(wmClass) && !win.minimized)
+                win.raise();
         }
     }
 

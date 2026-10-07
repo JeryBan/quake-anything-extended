@@ -31,6 +31,10 @@ opt-in from Preferences.
   (`ui/workspace.js`, `ui/altTab.js`) access it from JavaScript. Restored on
   detach, uncovering the window's real value rather than forcing `false`.
   Consequence: the keyboard shortcut is the only way to summon a drawer.
+- Drawers are **kept above** other windows (`Meta.Window.make_above()`), and
+  demoted on detach only if the extension was the one that raised them. Guake
+  (WM class `guake`) shares that layer, so whenever a drawer takes focus any
+  visible Guake window is raised back over it.
 
 ### Changed
 

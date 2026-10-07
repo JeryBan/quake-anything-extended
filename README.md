@@ -88,6 +88,9 @@ edge.
   drawer freely — the next toggle puts it back exactly where settings say
 - **Hidden from the overview and Alt-Tab**, so a sticky drawer does not clutter
   every workspace's window list. The shortcut is the only way to summon it
+- **Always on top** — a drawer is kept above other windows even after it loses
+  focus. Guake is the one exception: it stays above drawers too, so a drawer
+  taking focus raises any visible Guake window back over it
 - Only windows **spawned by this extension** are controlled; other windows of
   the same app are left alone
 - Windows survive suspend and resume in place
